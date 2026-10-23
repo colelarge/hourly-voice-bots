@@ -9,7 +9,8 @@ intents.voice_states = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 VOICE_CHANNEL_ID = int(os.environ.get('VOICE_CHANNEL_ID'))
-SOUND_FILE = "sound.mp3" 
+SOUND_FILE = "B77CEE08-6AB2-4F60-BEFA-B339E12B1A98.mp3"
+ 
 
 @bot.event
 async def on_ready():
