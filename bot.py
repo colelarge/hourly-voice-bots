@@ -3,7 +3,7 @@ from discord.ext import tasks, commands
 import asyncio
 import os
 import datetime
-from zoneinfo import ZoneInfo  # Direct timezone tracker
+from zoneinfo import ZoneInfo
 from flask import Flask
 from threading import Thread
 
@@ -25,10 +25,12 @@ intents.voice_states = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-VOICE_CHANNEL_ID = int(os.environ.get('VOICE_CHANNEL_ID'))
+# 1. Update this to take multiple IDs separated by commas
+VOICE_CHANNELS_STR = os.environ.get('VOICE_CHANNEL_ID', '')
+VOICE_CHANNEL_IDS = [int(i.strip()) for i in VOICE_CHANNELS_STR.split(',') if i.strip()]
+
 SOUND_FILE = "B77CEE08-6AB2-4F60-BEFA-B339E12B1A98.mp3" 
 
-# Direct Ohio Time Array: Forces the loop to run at :00 matching America/New_York clock
 OHIO_TZ = ZoneInfo("America/New_York")
 OHIO_TIMES = [datetime.time(hour=h, minute=0, tzinfo=OHIO_TZ) for h in range(24)]
 
@@ -37,16 +39,13 @@ async def on_ready():
     print(f'Bot is online as {bot.user}')
     hourly_sound_loop.start() 
 
-@tasks.loop(time=OHIO_TIMES)
-async def hourly_sound_loop():
-    await bot.wait_until_ready()
-    channel = bot.get_channel(VOICE_CHANNEL_ID)
-    
+async def play_in_channel(channel_id):
+    channel = bot.get_channel(channel_id)
     if isinstance(channel, discord.VoiceChannel):
         human_count = sum(1 for member in channel.members if not member.bot)
         
         if human_count == 0:
-            print(f"Skipping top of the hour: No users in voice channel.")
+            print(f"Skipping channel {channel_id}: No users present.")
             return
             
         try:
@@ -58,9 +57,15 @@ async def hourly_sound_loop():
                 await asyncio.sleep(1) 
                 
             await vc.disconnect() 
-            
         except Exception as e:
-            print(f"Error in voice loop: {e}")
+            print(f"Error in channel {channel_id}: {e}")
+
+@tasks.loop(time=OHIO_TIMES)
+async def hourly_sound_loop():
+    await bot.wait_until_ready()
+    # 2. Cycle through every channel ID in your list simultaneously
+    for channel_id in VOICE_CHANNEL_IDS:
+        await play_in_channel(channel_id)
 
 keep_alive()
 bot.run(os.environ.get('DISCORD_TOKEN'))
